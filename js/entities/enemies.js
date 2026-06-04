@@ -73,6 +73,40 @@ function applyTypeStats(e, type) {
       e.ranged = true; e.shootCD = 0;
       e.geo = 6; e.xp = 22;
       break;
+    case 'spike_ball': // Bouncy, small, fast, reflects projectiles
+      e.hp = 2; e.maxHp = 2; e.speed = 1.8; e.color = '#bb3344';
+      e.w = 12; e.h = 12; e.bouncy = true; e.damage = 2;
+      e.geo = 4; e.xp = 14; e.aggroRange = 120;
+      break;
+    case 'shadow_sprite': // Fast, stealthy, phases, hits hard
+      e.hp = 3; e.maxHp = 3; e.speed = 2.2; e.color = '#332244';
+      e.flying = true; e.phasing = true; e.damage = 3;
+      e.floatBase = e.y; e.floatAmp = 20; e.floatT = Math.random() * Math.PI * 2;
+      e.geo = 6; e.xp = 25; e.aggroRange = 160;
+      break;
+    case 'slime': // Slow, tanky, splits into mini-slimes on death
+      e.hp = 6; e.maxHp = 6; e.speed = 0.4; e.color = '#44aa44';
+      e.w = 20; e.h = 18; e.slime = true; e.splitsOnDeath = 2;
+      e.geo = 7; e.xp = 24; e.aggroRange = 100;
+      break;
+    case 'necromancer': // Ranged caster, summons dark projectiles
+      e.hp = 4; e.maxHp = 4; e.speed = 0.6; e.color = '#664488';
+      e.ranged = true; e.shootCD = 0; e.preferDist = 160; e.retreatDist = 80;
+      e.darkMagic = true; e.summonCD = 180;
+      e.geo = 8; e.xp = 28; e.aggroRange = 200;
+      break;
+    case 'ghost': // Flying spirit, passes through walls, haunts
+      e.hp = 5; e.maxHp = 5; e.speed = 1.4; e.color = '#ccccff';
+      e.flying = true; e.phasing = true; e.passThrough = true;
+      e.floatBase = e.y; e.floatAmp = 32; e.floatT = Math.random() * Math.PI * 2;
+      e.geo = 6; e.xp = 20; e.aggroRange = 150;
+      break;
+    case 'golem': // Very tanky, very slow, ground pound attack
+      e.hp = 12; e.maxHp = 12; e.speed = 0.3; e.color = '#886655';
+      e.w = 26; e.h = 32; e.armored = true; e.tankInvuln = 0.8;
+      e.poundCD = 0; e.heavyAttack = true;
+      e.geo = 12; e.xp = 40;
+      break;
     default:
       e.hp = 2; e.maxHp = 2; e.speed = 0.8; e.color = '#666666';
   }
@@ -160,6 +194,12 @@ function _groundAI(e, pl, dx, dy, dist, aggro, roomEntities, moveActor, rectSoli
       break;
     case 'mushroom':
     case 'crystal_wyrm':
+    case 'spike_ball':
+    case 'shadow_sprite':
+    case 'slime':
+    case 'necromancer':
+    case 'ghost':
+    case 'golem':
       _defaultAI(e, pl, dx, dy, dist, aggro, roomEntities);
       break;
     default:

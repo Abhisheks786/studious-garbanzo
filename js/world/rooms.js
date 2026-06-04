@@ -181,6 +181,9 @@ export const ROOMS = [
       {type:'mushroom',tx:20,ty:14},
       {type:'flyer',   tx:15,ty:6},
       {type:'ranged',  tx:25,ty:13},
+      {type:'spike_ball', tx:8, ty:10},
+      {type:'shadow_sprite', tx:22, ty:8},
+      {type:'slime',   tx:16, ty:14},
     ],
     collectibles:[
       {type:'geo',   tx:7, ty:8,  val:12},
@@ -235,6 +238,9 @@ export const ROOMS = [
       {type:'flyer',       tx:25,ty:4},
       {type:'mushroom',    tx:14,ty:8},
       {type:'elite',       tx:20,ty:13},
+      {type:'necromancer', tx:12, ty:10},
+      {type:'ghost',       tx:28, ty:6},
+      {type:'spike_ball',  tx:5, ty:12},
     ],
     collectibles:[
       {type:'geo',   tx:6, ty:6,  val:15},
