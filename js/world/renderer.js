@@ -20,8 +20,10 @@ const CULL_MARGIN = 60; // px outside viewport to still draw
 
 export class Renderer {
   constructor(canvas) {
+    if (!canvas) throw new Error('Canvas element not found');
     this.canvas = canvas;
     this.ctx    = canvas.getContext('2d');
+    if (!this.ctx) throw new Error('Failed to get 2D context');
     this.ctx.imageSmoothingEnabled = false;
 
     // Offscreen tile cache

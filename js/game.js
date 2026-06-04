@@ -2,7 +2,8 @@
 //  SILKBOUND PRO — Main Game Orchestrator
 // ═══════════════════════════════════════════════════
 import { W, H, TILE, PL_SPEED, PL_JUMP, PL_GRAV, PL_MAXFALL, DASH_SPEED, DASH_DUR,
-         biomeColors, XP_TABLE, RELICS, SKILLS, SHOP_ITEMS, QUESTS } from './constants.js';import { SaveSystem }    from './systems/save.js';
+         biomeColors, XP_TABLE, RELICS, SKILLS, SHOP_ITEMS, QUESTS } from './constants.js';
+import { SaveSystem }    from './systems/save.js';
 import { AudioSystem }   from './systems/audio.js';
 import { InputSystem }   from './systems/input.js';
 import { ParticleSystem} from './systems/particles.js';
@@ -121,16 +122,19 @@ class Game {
 
     this.input.buildSnapshot();
 
-    // Run updates in fixed steps (max 10 updates to prevent freeze)
-    let updatesCount = 0;
-    while (this._accumulator >= fixedDelta && updatesCount < 10) {
-      this._update(1.0);
-      this._accumulator -= fixedDelta;
-      this.frame++;
-      updatesCount++;
+    try {
+      // Run updates in fixed steps (max 10 updates to prevent freeze)
+      let updatesCount = 0;
+      while (this._accumulator >= fixedDelta && updatesCount < 10) {
+        this._update(1.0);
+        this._accumulator -= fixedDelta;
+        this.frame++;
+        updatesCount++;
+      }
+      this._draw();
+    } catch (err) {
+      console.error('[Game] Loop crash:', err);
     }
-
-    this._draw();
     this._raf = requestAnimationFrame(t => this._loop(t));
   }
 
@@ -138,7 +142,28 @@ class Game {
   _update(dt) {
     this.ui.updateNotif();
 
-    if (this.state === 'menu' || this.state === 'gameover' || this.state === 'victory') return;
+    if (this.state === 'menu') {
+      const jp = this.input.JP;
+      if (jp.jump || jp.attack || this.input.K['Enter']) {
+        this._beginGame();
+      }
+      return;
+    }
+    if (this.state === 'gameover') {
+      const jp = this.input.JP;
+      if (jp.jump || jp.attack || this.input.K['Enter']) {
+        this._respawn();
+      }
+      return;
+    }
+    if (this.state === 'victory') {
+      const jp = this.input.JP;
+      if (jp.jump || jp.attack || this.input.K['Enter']) {
+        this.save.reset();
+        location.reload();
+      }
+      return;
+    }
 
     if (this.state === 'dialogue') {
       this.ui.advanceDialogue(this.input.JP);
