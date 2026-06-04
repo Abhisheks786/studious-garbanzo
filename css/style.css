@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;touch-action:none;font-family:'Share Tech Mono',monospace;}
+#wrap{position:relative;width:640px;height:400px;transform-origin:center center;}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;cursor:default;}
+#minimap{position:absolute;top:8px;right:8px;width:80px;height:50px;border:1px solid #ffffff18;background:#00000088;pointer-events:none;z-index:5;}
+/* Mobile controls */
+#mctl{position:absolute;bottom:0;left:0;right:0;height:110px;pointer-events:none;z-index:15;display:none;}
+#mctl.on{display:block;}
+.mb{position:absolute;border-radius:50%;pointer-events:auto;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-tap-highlight-color:transparent;border:2px solid #ffffff22;background:#ffffff06;color:#ffffffaa;font-size:10px;letter-spacing:1px;font-family:'Share Tech Mono',monospace;transition:background .08s,border-color .08s;}
+.mb.lit{background:#ffffff20;border-color:#ffffff55;}
+#mb-l{left:12px;bottom:20px;width:58px;height:58px;font-size:22px;}
+#mb-r{left:80px;bottom:20px;width:58px;height:58px;font-size:22px;}
+#mb-j{right:12px;bottom:18px;width:66px;height:66px;border-color:#e8d5a033;background:#e8d5a008;color:#e8d5a0aa;font-size:10px;}
+#mb-d{right:90px;bottom:28px;width:54px;height:54px;border-color:#6688ff33;color:#6688ffaa;font-size:9px;}
+#mb-a{right:154px;bottom:20px;width:58px;height:58px;border-color:#ff446633;color:#ff4466aa;font-size:9px;}
+#mb-u{left:80px;bottom:88px;width:44px;height:44px;font-size:11px;}

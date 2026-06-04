@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>SILKBOUND — A Hollow Tale</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="640" height="400"></canvas>
+  <canvas id="minimap" width="80" height="50"></canvas>
+  <div id="mctl">
+    <div class="mb" id="mb-l">◀</div>
+    <div class="mb" id="mb-r">▶</div>
+    <div class="mb" id="mb-u">▲</div>
+    <div class="mb" id="mb-j">JUMP</div>
+    <div class="mb" id="mb-d">DASH</div>
+    <div class="mb" id="mb-a">ATK</div>
+  </div>
+</div>
+<script type="module" src="js/game.js"></script>
+<script>
+// Responsive scaling
+function scale(){
+  const s=Math.min(window.innerWidth/640,window.innerHeight/400,2);
+  document.getElementById('wrap').style.transform=`scale(${s})`;
+}
+scale();window.addEventListener('resize',scale);
+</script>
+</body>
+</html>
