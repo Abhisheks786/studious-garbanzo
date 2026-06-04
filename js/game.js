@@ -47,7 +47,7 @@ class Game {
     this.quests   = new QuestSystem(this.save, this.ui, this.audio);
 
     // State
-    this.state = 'menu'; // 'menu'|'playing'|'paused'|'dialogue'|'shop'|'skills'|'quests'|'settings'|'gameover'|'victory'
+    this.state = 'menu'; // 'menu'|'playing'|'paused'|'dialogue'|'shop'|'skills'|'quests'|'settings'|'gameover'|'victory'|'interact_menu'
     this.currentRoom = null;
     this.roomEntities = [];
     this.roomNpcs     = [];
@@ -55,20 +55,26 @@ class Game {
     this.boss         = null;
 
     // Transition
-    this.transAlpha = 0;
-    this.transitioning = false;
-    this.transTarget   = null;
-    this.transFromDir  = null;
+    this.transAlpha     = 0;
+    this.transitioning  = false;
+    this.transTarget    = null;
+    this.transFromDir   = null;
+    this.transPhase     = 'idle'; // 'idle' | 'fade-in' | 'load' | 'fade-out'
+    this._isLoadingRoom = false; // mutex: prevent re-entrant loadRoom
+    this._accumulator   = 0;
 
-    this._escHeld   = false;
-    this._prevState = 'menu';
-    this._fpsFrames = 0;
-    this._fpsT0     = 0;
-    this.fps        = 60;
-    this.frame      = 0;
-    this._lastTime  = 0;
-    this._raf       = null;
-    this._menuHits  = {};
+    this._wHeld      = false;
+    this._sHeld      = false;
+    this._escHeld    = false;
+    this._prevState  = 'menu';
+    this._fpsFrames  = 0;
+    this._fpsT0      = 0;
+    this.fps         = 60;
+    this.frame       = 0;
+    this._lastTime   = 0;
+    this._raf        = null;
+    this._menuHits   = {};
+    this._debugMode  = false; // F3 toggle
 
     // Click/tap handler
     this._bindPointer();
@@ -86,20 +92,44 @@ class Game {
   }
 
   _loop(timestamp) {
-    const dt = Math.min((timestamp - this._lastTime) / 16.67, 3); // capped delta, 1.0 = 60fps
+    if (!this._lastTime) {
+      this._lastTime = timestamp;
+      this._fpsT0 = timestamp;
+    }
+    let elapsed = timestamp - this._lastTime;
     this._lastTime = timestamp;
-    this.frame++;
+
+    // Cap elapsed time to prevent spiral of death
+    if (elapsed > 250) elapsed = 250;
 
     // FPS counter
     this._fpsFrames++;
     if (this._fpsFrames >= 30) {
-      const elapsed = timestamp - this._fpsT0;
-      this.fps = elapsed > 0 ? Math.round(30000 / elapsed) : 60;
+      const elapsedFps = timestamp - this._fpsT0;
+      this.fps = elapsedFps > 0 ? Math.round(30000 / elapsedFps) : 60;
       this._fpsFrames = 0; this._fpsT0 = timestamp;
     }
 
+    // Pause RAF when hidden to save CPU
+    if (document.hidden) {
+      this._raf = requestAnimationFrame(t => this._loop(t));
+      return;
+    }
+
+    this._accumulator += elapsed;
+    const fixedDelta = 16.67; // 60 FPS fixed step
+
     this.input.buildSnapshot();
-    this._update(dt);
+
+    // Run updates in fixed steps (max 10 updates to prevent freeze)
+    let updatesCount = 0;
+    while (this._accumulator >= fixedDelta && updatesCount < 10) {
+      this._update(1.0);
+      this._accumulator -= fixedDelta;
+      this.frame++;
+      updatesCount++;
+    }
+
     this._draw();
     this._raf = requestAnimationFrame(t => this._loop(t));
   }
@@ -119,6 +149,36 @@ class Game {
       return;
     }
 
+    if (this.state === 'interact_menu') {
+      const jp = this.input.JP;
+      const opts = this.ui.interactOptions || [];
+      if (opts.length > 0) {
+        if (jp.up || (this.input.K['KeyW'] && !this._wHeld)) {
+          this._wHeld = true;
+          this.ui.interactIdx = (this.ui.interactIdx - 1 + opts.length) % opts.length;
+          this.audio.uiClick();
+        }
+        if (!this.input.K['KeyW']) this._wHeld = false;
+
+        if (jp.down || (this.input.K['KeyS'] && !this._sHeld)) {
+          this._sHeld = true;
+          this.ui.interactIdx = (this.ui.interactIdx + 1) % opts.length;
+          this.audio.uiClick();
+        }
+        if (!this.input.K['KeyS']) this._sHeld = false;
+
+        if (jp.attack || jp.jump || this.input.K['Enter']) {
+          this._handleInteractSelect(opts[this.ui.interactIdx]);
+        }
+      }
+
+      if (this.input.K['Escape'] || jp.dash) {
+        this.state = 'playing';
+        this.audio.uiBack();
+      }
+      return;
+    }
+
     if (this.state === 'paused' || this.state === 'shop' || this.state === 'skills'
         || this.state === 'quests' || this.state === 'settings') return;
 
@@ -130,6 +190,11 @@ class Game {
     this._updateBoss();
     this.parts.update();
 
+    // Biome weather particles (called per frame, capped internally)
+    if (this.currentRoom) {
+      this.parts.spawnWeather(this.currentRoom.biome, this.camera.x, this.camera.y, W, H);
+    }
+
     // Pause
     if (this.input.K['Escape'] && !this._escHeld) {
       this._escHeld = true;
@@ -137,6 +202,13 @@ class Game {
       this.audio.resume();
     }
     if (!this.input.K['Escape']) this._escHeld = false;
+
+    // Debug overlay toggle (F3)
+    if (this.input.K['F3'] && !this._f3Held) {
+      this._f3Held  = true;
+      this._debugMode = !this._debugMode;
+    }
+    if (!this.input.K['F3']) this._f3Held = false;
   }
 
   // ── Player Update ─────────────────────────────────
@@ -262,8 +334,14 @@ class Game {
     // ── Physics move ─────────────────────────────────
     pl.hitWall = 0;
     const wasGround = pl.onGround;
+    const prevVy    = pl.vy;
     phys.moveActor(pl, pl.vx, pl.vy, pl.dropTimer > 0);
-    if (pl.onGround && !wasGround) { parts.spawnDust(pl.x+pl.w/2, pl.y+pl.h, pal.particle); this.audio.land(); }
+    if (pl.onGround && !wasGround) {
+      parts.spawnDust(pl.x+pl.w/2, pl.y+pl.h, pal.particle);
+      this.audio.land();
+      // Landing squash effect based on fall speed
+      pl.triggerLandSquash(prevVy);
+    }
 
     // Wall detection
     if (!pl.onGround && hasWS) {
@@ -296,7 +374,7 @@ class Game {
             e.x+e.w/2, e.y-4, hitbox.isCrit?'#ffcc00':'#ffffff', hitbox.isCrit?14:11);
           if (hitbox.isCrit) { this.audio.critHit(); parts.shake(3, 8); }
           if (killed) {
-            const result = killEnemy(e, save, parts, pal.particle, this.audio);
+            const result = killEnemy(e, save, parts, pal.particle, this.audio, this.roomEntities);
             this.quests.onKill(e.type);
             this.quests.onGeoCollected(save.state.geo);
             if (result.leveled) { this.ui.pushNotif('✦ LEVEL UP! LV '+save.state.level, '#aa88ff'); this.audio.levelUp(); }
@@ -309,7 +387,7 @@ class Game {
       // vs boss
       if (this.boss && this.boss.alive) {
         if (phys.overlap(hitbox.ax, hitbox.ay, hitbox.aw, hitbox.ah, this.boss.x, this.boss.y, this.boss.w, this.boss.h)) {
-          const result = this.boss.hurt(hitbox.dmg, pl.facing, parts, this.audio, pal.particle);
+          const result = this.boss.hurt(hitbox.dmg, pl.facing, parts, this.audio, pal.particle, this.audio);
           hitAnything = true;
           parts.floatText(hitbox.isCrit?'★'+hitbox.dmg:''+hitbox.dmg, this.boss.x+this.boss.w/2, this.boss.y-8,
             hitbox.isCrit?'#ffcc00':'#ffffff', hitbox.isCrit?14:11);
@@ -334,20 +412,27 @@ class Game {
         if (exit.dir==='left'  && pl.x <= exit.wx+TILE+4 && pl.x <= exit.wx+4 && Math.abs(pl.y+pl.h/2-(exit.wy+TILE/2)) < TILE*2.5) hit=true;
         if (exit.dir==='up'    && pl.y <= exit.wy+TILE && pl.y >= exit.wy-10 && Math.abs(pl.x+pl.w/2-(exit.wx+TILE/2)) < TILE*3) hit=true;
         if (exit.dir==='down'  && pl.y+pl.h >= exit.wy && Math.abs(pl.x+pl.w/2-(exit.wx+TILE/2)) < TILE*3) hit=true;
-        if (hit) { this._startTransition(exit.to, exit.dir); break; }
+        if (hit) {
+          if (this.boss && this.boss.alive && this.boss.arenaLocked) {
+            this.ui.pushNotif('⚠ EXIT SEALED BY THE FOG', '#ff4444');
+            this.parts.spawn(pl.x+pl.w/2, pl.y+pl.h/2, '#ff4444', 6, 2);
+            if (exit.dir === 'right') { pl.x -= 8; pl.vx = -4; }
+            if (exit.dir === 'left') { pl.x += 8; pl.vx = 4; }
+            if (exit.dir === 'up') { pl.y += 8; pl.vy = 4; }
+            if (exit.dir === 'down') { pl.y -= 8; pl.vy = -4; }
+            break;
+          }
+          this._startTransition(exit.to, exit.dir);
+          break;
+        }
       }
     }
 
     // ── NPC proximity ────────────────────────────────
     for (const npc of this.roomNpcs) {
       const near = Math.abs(pl.x+pl.w/2 - npc.wx) < 36 && Math.abs(pl.y+pl.h/2 - npc.wy) < 40;
-      if (near && inp.JP.up && !npc.interacted) {
-        npc.interacted = true;
-        if (!save.state.seenNpcs.includes(npc.id)) save.state.seenNpcs.push(npc.id);
-        this.quests.onNPCTalked(npc.id);
-        this.ui.showDialogue(npc.name, npc.lines, !!npc.isMerchant, npc.id);
-        this.state = 'dialogue';
-        save.write();
+      if (near && inp.JP.up) {
+        this._openInteractMenu('npc', npc);
       }
     }
 
@@ -376,14 +461,9 @@ class Game {
         }
         save.write();
       } else if (e.type === 'loot') {
-        if (!phys.overlap(pl.x, pl.y, pl.w, pl.h, e.x, e.y, e.w, e.h)) continue;
-        if (!save.state.abilities.includes(e.ability)) {
-          e.collected = true;
-          save.state.abilities.push(e.ability);
-          this.audio.ability(); parts.spawnBurst(e.x+10, e.y+10, '#ffd700', 20);
-          this.ui.showDialogue('ABILITY GAINED', [e.name, e.desc]);
-          this.state = 'dialogue';
-          save.write();
+        const near = Math.abs(pl.x+pl.w/2 - (e.x+e.w/2)) < 30 && Math.abs(pl.y+pl.h/2 - (e.y+e.h/2)) < 30;
+        if (near && inp.JP.up) {
+          this._openInteractMenu('loot', e);
         }
       }
     }
@@ -394,8 +474,16 @@ class Game {
     if (save.hasRelic('thorn_cloak') && pl.invTimer === 0) {
       // handled in _checkPlayerHurt
     }
+    // Squash/stretch tick
+    pl.tickSquash();
+    // Stamina regeneration
+    pl.tickStamina();
+    // State machine update
+    pl.updateState();
+
     this.camera.follow(pl, this.currentRoom);
-    save.write();
+    // NOTE: save.write() removed from here — was called 60x/sec.
+    // Writing is now triggered by meaningful events only.
   }
 
   _checkPlayerHurt() {
@@ -418,7 +506,16 @@ class Game {
       }
       if (overlap) {
         this._hurtPlayer(dmg);
-        if (this.save.hasRelic('thorn_cloak')) hurtEnemy(e, 1, -pl.facing, false, save, this.parts, biomeColors(this.currentRoom.biome).particle, this.audio);
+        if (this.save.hasRelic('thorn_cloak')) {
+          const killed = hurtEnemy(e, 1, -pl.facing, false, save, this.parts, biomeColors(this.currentRoom.biome).particle, this.audio);
+          if (killed) {
+            const result = killEnemy(e, save, this.parts, biomeColors(this.currentRoom.biome).particle, this.audio, this.roomEntities);
+            this.quests.onKill(e.type);
+            this.quests.onGeoCollected(save.state.geo);
+            if (result.leveled) { this.ui.pushNotif('✦ LEVEL UP! LV '+save.state.level, '#aa88ff'); this.audio.levelUp(); }
+            this.ui.pushNotif('◈ +'+result.geo, '#ffd700');
+          }
+        }
         break;
       }
     }
@@ -438,6 +535,68 @@ class Game {
     this.parts.shake(5, 14);
     this.audio.takeDmg(); this.save.write();
     if (S.hp <= 0) { pl.dead = true; this.audio.die(); }
+  }
+
+  _openInteractMenu(type, target) {
+    this.state = 'interact_menu';
+    this.ui.interactIdx = 0;
+    this.ui.interactTarget = target;
+    this.ui.interactType = type;
+
+    if (type === 'npc') {
+      this.ui.interactTitle = target.name;
+      if (target.isMerchant) {
+        this.ui.interactOptions = [
+          { label: 'Talk', action: 'talk' },
+          { label: 'Trade', action: 'trade' },
+          { label: 'Cancel', action: 'cancel' }
+        ];
+      } else {
+        this.ui.interactOptions = [
+          { label: 'Talk', action: 'talk' },
+          { label: 'Cancel', action: 'cancel' }
+        ];
+      }
+    } else if (type === 'loot') {
+      this.ui.interactTitle = target.name;
+      this.ui.interactOptions = [
+        { label: 'Take ' + target.name, action: 'take' },
+        { label: 'Cancel', action: 'cancel' }
+      ];
+    }
+  }
+
+  _handleInteractSelect(opt) {
+    const target = this.ui.interactTarget;
+    const type = this.ui.interactType;
+
+    this.audio.uiClick();
+
+    if (opt.action === 'cancel') {
+      this.state = 'playing';
+    } else if (opt.action === 'talk') {
+      target.interacted = true;
+      if (!this.save.state.seenNpcs.includes(target.id)) this.save.state.seenNpcs.push(target.id);
+      this.quests.onNPCTalked(target.id);
+      this.ui.showDialogue(target.name, target.lines, false, target.id);
+      this.state = 'dialogue';
+      this.save.write();
+    } else if (opt.action === 'trade') {
+      this.state = 'shop';
+      this.ui.activePanel = 'shop';
+      this.ui.isMerchant = false;
+      this.ui.merchantNpcId = target.id;
+    } else if (opt.action === 'take') {
+      if (!this.save.state.abilities.includes(target.ability)) {
+        target.collected = true;
+        this.save.state.abilities.push(target.ability);
+        this.audio.ability();
+        this.parts.spawnBurst(target.x+10, target.y+10, '#ffd700', 20);
+        this.ui.showDialogue('ABILITY GAINED', [target.name, target.desc]);
+        this.state = 'dialogue';
+        this.save.write();
+      }
+    }
   }
 
   // ── Enemy Update ──────────────────────────────────
@@ -460,7 +619,8 @@ class Game {
         continue;
       }
       if (!e.type || e.type === 'collectible' || e.type === 'loot') continue;
-      updateEnemyAI(e, this.player, this.roomEntities, moveA, rSolid, pal.particle, this.parts, this.frame);
+      // Pass physics for LOS check
+      updateEnemyAI(e, this.player, this.roomEntities, moveA, rSolid, pal.particle, this.parts, this.frame, this.physics);
     }
   }
 
@@ -477,22 +637,20 @@ class Game {
     S.defeated.push(this.currentRoom.id + '_boss');
     S.geo += b.geo; S.maxHp = Math.min(S.maxHp + 2, 14); S.hp = S.maxHp;
     const leveled = this.save.addXP(b.xp);
-    this.save.write();
-    this.parts.spawnBurst(b.x+b.w/2, b.y+b.h/2, biomeColors(this.currentRoom.biome).particle, 40);
-    this.parts.shake(10, 30);
+    this.parts.spawnExplosion(b.x+b.w/2, b.y+b.h/2, biomeColors(this.currentRoom.biome).particle);
     this.audio.boss();
-    this.ui.pushNotif('✦ '+b.bossType.toUpperCase()+' DEFEATED  +◈'+b.geo, '#ffcc44');
+    this.ui.showStageClearedCard(b.bossType);
     this.quests.onBossKilled(b.bossType);
     if (leveled) { this.ui.pushNotif('✦ LEVEL UP! LV '+S.level, '#aa88ff'); this.audio.levelUp(); }
     this.boss = null;
-    this.save.write();
+    this.save.forceWrite(); // Critical save: use forceWrite() to bypass throttle
     if (this.currentRoom.isFinal) { setTimeout(() => { this.state = 'victory'; }, 2500); }
   }
 
   _die() {
     this.state = 'gameover';
     this.save.state.hp = this.save.state.maxHp;
-    this.save.write();
+    this.save.forceWrite(); // Critical: ensure save on death
   }
 
   // ── Room loading ──────────────────────────────────
@@ -530,8 +688,10 @@ class Game {
     }
 
     if (room.boss && !this.save.state.defeated.includes(roomId + '_boss')) {
-      const b = room.boss;
-      this.boss = new Boss(b.type, b.tx * TILE, b.ty * TILE, roomId);
+      const b    = room.boss;
+      this.boss  = new Boss(b.type, b.tx * TILE, b.ty * TILE, roomId);
+      // Give boss its room bounds so VoidKing can clamp teleport
+      this.boss.setRoomBounds(room.pixelW, room.pixelH);
       this.audio.startBossMusic(b.type);
     } else {
       this.audio.startAmbient(room.biome);
@@ -539,6 +699,9 @@ class Game {
 
     this.roomNpcs  = (room.npcs  || []).map(n => ({ ...n, wx:n.tx*TILE, wy:n.ty*TILE, interacted:false }));
     this.roomExits = (room.exits || []).map(e => ({ ...e, wx:e.tx*TILE, wy:e.ty*TILE }));
+
+    // Clear ghost particles from previous room
+    this.parts.reset();
 
     // Spawn
     const sx = spawnOverride ? spawnOverride.x : room.spawnTx * TILE;
@@ -549,7 +712,7 @@ class Game {
     this.camera.x = Math.max(0, this.player.x - W/2);
     this.camera.y = Math.max(0, this.player.y - H/2);
 
-    this.ui.drawMinimap(roomId, ROOMS);
+    this.ui.drawMinimap(roomId, ROOMS, 0);
   }
 
   // ── Room transition ───────────────────────────────
@@ -559,30 +722,52 @@ class Game {
     this.transTarget    = toRoom;
     this.transFromDir   = fromDir;
     this.transAlpha     = 0;
+    this.transPhase     = 'fade-in';
     this.save.state.spawnRoom = toRoom;
     this.save.write();
   }
 
   _updateTransition() {
-    this.transAlpha += 0.07;
-    if (this.transAlpha >= 1) {
-      // Do room swap
-      const spawnDir = { right:'left', left:'right', up:'down', down:'up' }[this.transFromDir];
-      const destRoom = ROOM_MAP[this.transTarget];
-      let spawnOverride = null;
-      if (destRoom) {
+    if (this.transPhase === 'fade-in') {
+      this.transAlpha += 0.08;
+      if (this.transAlpha >= 1.0) {
+        this.transAlpha = 1.0;
+        this.transPhase = 'load';
+      }
+    } else if (this.transPhase === 'load') {
+      if (this._isLoadingRoom) return;
+      this._isLoadingRoom = true;
+      try {
+        const spawnDir = { right:'left', left:'right', up:'down', down:'up' }[this.transFromDir];
+        const destRoom = ROOM_MAP[this.transTarget];
+        if (!destRoom) throw new Error(`Unknown room: ${this.transTarget}`);
+        let spawnOverride = null;
         const matchExit = (destRoom.exits||[]).find(e => e.dir === spawnDir);
         if (matchExit) {
           const rows = destRoom.tiles.length, cols = destRoom.tiles[0].length;
-          if (spawnDir==='left')  spawnOverride = { x:2*TILE,       y:matchExit.ty*TILE };
-          if (spawnDir==='right') spawnOverride = { x:(cols-3)*TILE, y:matchExit.ty*TILE };
-          if (spawnDir==='down')  spawnOverride = { x:matchExit.tx*TILE, y:2*TILE };
-          if (spawnDir==='up')    spawnOverride = { x:matchExit.tx*TILE, y:(rows-4)*TILE };
+          if (spawnDir==='left')  spawnOverride = { x:2*TILE,         y:matchExit.ty*TILE };
+          if (spawnDir==='right') spawnOverride = { x:(cols-3)*TILE,  y:matchExit.ty*TILE };
+          if (spawnDir==='down')  spawnOverride = { x:matchExit.tx*TILE, y:(rows-4)*TILE };
+          if (spawnDir==='up')    spawnOverride = { x:matchExit.tx*TILE, y:2*TILE };
         }
+        this.loadRoom(this.transTarget, spawnOverride);
+        if (destRoom.area) this.ui.showTransitionCard(destRoom.area);
+        this.transPhase = 'fade-out';
+      } catch(err) {
+        console.error('[Game] Room transition failed:', err);
+        this.transitioning = false;
+        this.transAlpha = 0;
+        this.transPhase = 'idle';
+      } finally {
+        this._isLoadingRoom = false;
       }
-      this.loadRoom(this.transTarget, spawnOverride);
-      // Fade back in
-      setTimeout(() => { this.transitioning = false; this.transAlpha = 0; }, 200);
+    } else if (this.transPhase === 'fade-out') {
+      this.transAlpha -= 0.08;
+      if (this.transAlpha <= 0) {
+        this.transAlpha = 0;
+        this.transitioning = false;
+        this.transPhase = 'idle';
+      }
     }
   }
 
@@ -623,15 +808,22 @@ class Game {
     if (this.state === 'skills')   { this._menuHits = this.ui.drawSkillTree(); }
     if (this.state === 'quests')   { this._menuHits = this.ui.drawQuestLog(); }
     if (this.state === 'settings') { this._menuHits = this.ui.drawSettingsMenu(this.save.state.settings); }
+    if (this.state === 'interact_menu') { this._menuHits = this.ui.drawInteractMenu(); }
 
     // HUD always on top (except full-screen panels)
-    if (this.state === 'playing' || this.state === 'dialogue') {
+    if (this.state === 'playing' || this.state === 'dialogue' || this.state === 'interact_menu') {
       this.ui.drawHUD(this.player, this.save, this.currentRoom, this.boss);
+      this.ui.drawMinimap(this.currentRoom.id, ROOMS, this.frame);
     }
+    this.ui.drawTransitionCard();
+    this.ui.drawStageClearedCard();
     this.ui.drawDialogue();
     this.ui.drawNotif();
     this.renderer.drawTransition(this.transAlpha);
     if (this.save.state.settings.showFPS) this.ui.drawFPS(this.fps);
+    if (this._debugMode) {
+      this.ui.drawDebug(this.state, this.roomEntities.length, this.currentRoom, this.fps);
+    }
   }
 
   // ── Pointer input for menus ───────────────────────
@@ -712,6 +904,15 @@ class Game {
       }
       if (this.state === 'quests') {
         if (hits._back && this.ui.isHit(hits._back, cx2, cy2)) { this.state='paused'; this.audio.uiBack(); }
+        return;
+      }
+      if (this.state === 'interact_menu') {
+        for (const [key, btn] of Object.entries(hits)) {
+          if (this.ui.isHit(btn, cx2, cy2)) {
+            this._handleInteractSelect(btn.option);
+            break;
+          }
+        }
         return;
       }
     };

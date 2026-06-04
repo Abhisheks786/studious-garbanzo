@@ -3,30 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="Silkbound — A Hollow Tale. A browser-based 2D action-adventure. Explore forgotten depths, conquer crystal caverns, and face the Void King.">
+<meta name="theme-color" content="#06040e">
+<meta property="og:title" content="SILKBOUND — A Hollow Tale">
+<meta property="og:description" content="A browser-based 2D action-adventure. Explore forgotten depths and face the Void King.">
 <title>SILKBOUND — A Hollow Tale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+
+<!-- Loading screen (hidden by JS once game initializes) -->
+<div id="loading-screen">
+  <div class="loading-logo">SILKBOUND</div>
+  <div class="loading-sub">A HOLLOW TALE</div>
+  <div class="loading-bar-wrap">
+    <div class="loading-bar" id="loading-bar"></div>
+  </div>
+  <div class="loading-hint">Loading world data...</div>
+</div>
+
 <div id="wrap">
-  <canvas id="c" width="640" height="400"></canvas>
-  <canvas id="minimap" width="80" height="50"></canvas>
-  <div id="mctl">
-    <div class="mb" id="mb-l">◀</div>
-    <div class="mb" id="mb-r">▶</div>
-    <div class="mb" id="mb-u">▲</div>
-    <div class="mb" id="mb-j">JUMP</div>
-    <div class="mb" id="mb-d">DASH</div>
-    <div class="mb" id="mb-a">ATK</div>
+  <canvas id="c" width="640" height="400" aria-label="Silkbound game canvas"></canvas>
+  <canvas id="minimap" width="80" height="50" aria-label="Minimap"></canvas>
+  <div id="mctl" role="group" aria-label="Mobile controls">
+    <div class="mb" id="mb-l" aria-label="Move left">◀</div>
+    <div class="mb" id="mb-r" aria-label="Move right">▶</div>
+    <div class="mb" id="mb-u" aria-label="Interact">▲</div>
+    <div class="mb" id="mb-j" aria-label="Jump">JUMP</div>
+    <div class="mb" id="mb-d" aria-label="Dash">DASH</div>
+    <div class="mb" id="mb-a" aria-label="Attack">ATK</div>
   </div>
 </div>
-<script type="module" src="js/game.js"></script>
+
 <script>
 // Responsive scaling
-function scale(){
-  const s=Math.min(window.innerWidth/640,window.innerHeight/400,2);
-  document.getElementById('wrap').style.transform=`scale(${s})`;
+function scale() {
+  const s = Math.min(window.innerWidth / 640, window.innerHeight / 400, 2);
+  document.getElementById('wrap').style.transform = `scale(${s})`;
 }
-scale();window.addEventListener('resize',scale);
+scale();
+window.addEventListener('resize', scale);
+
+// Animated loading bar
+let loadPct = 0;
+const bar   = document.getElementById('loading-bar');
+const hint  = document.querySelector('.loading-hint');
+const steps = [
+  [20,  'Initializing engine...'],
+  [45,  'Loading world rooms...'],
+  [70,  'Spawning entities...'],
+  [90,  'Preparing audio...'],
+  [100, 'Ready!'],
+];
+let si = 0;
+const loadTick = setInterval(() => {
+  if (si < steps.length) {
+    loadPct = steps[si][0];
+    hint.textContent = steps[si][1];
+    si++;
+  }
+  if (bar) bar.style.width = loadPct + '%';
+  if (loadPct >= 100) clearInterval(loadTick);
+}, 320);
+
+// Hide loading screen once game module loads
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const ls = document.getElementById('loading-screen');
+    if (ls) {
+      ls.style.opacity = '0';
+      ls.style.transition = 'opacity 0.6s ease';
+      setTimeout(() => ls.remove(), 700);
+    }
+  }, 800);
+});
 </script>
+
+<script type="module" src="js/game.js"></script>
 </body>
 </html>

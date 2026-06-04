@@ -1,17 +1,229 @@
+/* ═══════════════════════════════════════════════════
+   SILKBOUND PRO — Premium CSS  (Production Upgrade)
+   ═══════════════════════════════════════════════════ */
+
+/* Fonts — loaded via HTML preconnect */
 @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap');
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#000;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;touch-action:none;font-family:'Share Tech Mono',monospace;}
-#wrap{position:relative;width:640px;height:400px;transform-origin:center center;}
-canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;cursor:default;}
-#minimap{position:absolute;top:8px;right:8px;width:80px;height:50px;border:1px solid #ffffff18;background:#00000088;pointer-events:none;z-index:5;}
-/* Mobile controls */
-#mctl{position:absolute;bottom:0;left:0;right:0;height:110px;pointer-events:none;z-index:15;display:none;}
-#mctl.on{display:block;}
-.mb{position:absolute;border-radius:50%;pointer-events:auto;touch-action:manipulation;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-tap-highlight-color:transparent;border:2px solid #ffffff22;background:#ffffff06;color:#ffffffaa;font-size:10px;letter-spacing:1px;font-family:'Share Tech Mono',monospace;transition:background .08s,border-color .08s;}
-.mb.lit{background:#ffffff20;border-color:#ffffff55;}
-#mb-l{left:12px;bottom:20px;width:58px;height:58px;font-size:22px;}
-#mb-r{left:80px;bottom:20px;width:58px;height:58px;font-size:22px;}
-#mb-j{right:12px;bottom:18px;width:66px;height:66px;border-color:#e8d5a033;background:#e8d5a008;color:#e8d5a0aa;font-size:10px;}
-#mb-d{right:90px;bottom:28px;width:54px;height:54px;border-color:#6688ff33;color:#6688ffaa;font-size:9px;}
-#mb-a{right:154px;bottom:20px;width:58px;height:58px;border-color:#ff446633;color:#ff4466aa;font-size:9px;}
-#mb-u{left:80px;bottom:88px;width:44px;height:44px;font-size:11px;}
+
+/* ── Reset ──────────────────────────────────────── */
+*, *::before, *::after {
+  margin: 0; padding: 0;
+  box-sizing: border-box;
+}
+
+/* ── Body ───────────────────────────────────────── */
+body {
+  background: #000;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, #1a0a2e 0%, #000 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+  touch-action: none;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* ── Game wrap ──────────────────────────────────── */
+#wrap {
+  position: relative;
+  width: 640px;
+  height: 400px;
+  transform-origin: center center;
+  /* Cinematic letterbox border */
+  box-shadow:
+    0 0 0 1px #ffffff08,
+    0 0 60px #6644aa44,
+    0 0 120px #000000cc;
+}
+
+/* ── Canvas ─────────────────────────────────────── */
+canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: default;
+}
+
+/* ── Minimap ────────────────────────────────────── */
+#minimap {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 80px;
+  height: 50px;
+  border: 1px solid #ffffff1a;
+  background: #00000088;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 2px;
+  box-shadow: 0 0 8px #00000055;
+}
+
+/* ── Loading screen ─────────────────────────────── */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  background: #06040e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  gap: 12px;
+  transition: opacity 0.6s ease;
+}
+
+.loading-logo {
+  font-family: 'IM Fell English', serif;
+  font-size: 52px;
+  color: #e8d5a0;
+  letter-spacing: 0.08em;
+  text-shadow:
+    0 0 30px #e8d5a066,
+    0 0 80px #6644aa44;
+  animation: logoGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes logoGlow {
+  from { text-shadow: 0 0 20px #e8d5a044, 0 0 60px #6644aa33; }
+  to   { text-shadow: 0 0 40px #e8d5a088, 0 0 100px #6644aa66; }
+}
+
+.loading-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: #ffffff33;
+  letter-spacing: 0.3em;
+  margin-top: -8px;
+}
+
+.loading-bar-wrap {
+  width: 280px;
+  height: 3px;
+  background: #ffffff0a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.loading-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6644aa, #aa88ff);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px #6644aa88;
+}
+
+.loading-hint {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  color: #ffffff28;
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+  min-height: 12px;
+}
+
+/* ── Mobile controls ────────────────────────────── */
+#mctl {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 110px;
+  pointer-events: none;
+  z-index: 15;
+  display: none;
+}
+
+#mctl.on { display: block; }
+
+.mb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  border: 2px solid #ffffff22;
+  background: #ffffff06;
+  color: #ffffffaa;
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-family: 'Share Tech Mono', monospace;
+  transition: background 0.08s, border-color 0.08s, transform 0.06s;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 12px #00000055;
+}
+
+.mb:active,
+.mb.lit {
+  background: #ffffff20;
+  border-color: #ffffff55;
+  transform: scale(0.93);
+  box-shadow: 0 0 16px #ffffff18;
+}
+
+/* D-pad */
+#mb-l { left: 12px;  bottom: 20px; width: 58px; height: 58px; font-size: 22px; }
+#mb-r { left: 80px;  bottom: 20px; width: 58px; height: 58px; font-size: 22px; }
+#mb-u { left: 80px;  bottom: 88px; width: 44px; height: 44px; font-size: 11px; }
+
+/* Action buttons */
+#mb-j {
+  right: 12px; bottom: 18px;
+  width: 66px; height: 66px;
+  border-color: #e8d5a033;
+  background: #e8d5a008;
+  color: #e8d5a0aa;
+  font-size: 10px;
+  box-shadow: 0 0 18px #e8d5a018, inset 0 0 12px #e8d5a008;
+}
+#mb-d {
+  right: 90px; bottom: 28px;
+  width: 54px; height: 54px;
+  border-color: #6688ff33;
+  color: #6688ffaa;
+  font-size: 9px;
+  box-shadow: 0 0 14px #6688ff12;
+}
+#mb-a {
+  right: 154px; bottom: 20px;
+  width: 58px; height: 58px;
+  border-color: #ff446633;
+  color: #ff4466aa;
+  font-size: 9px;
+  box-shadow: 0 0 14px #ff446618;
+}
+
+#mb-j:active, #mb-j.lit { background: #e8d5a025; border-color: #e8d5a077; box-shadow: 0 0 24px #e8d5a044; }
+#mb-d:active, #mb-d.lit { background: #6688ff25; border-color: #6688ff77; box-shadow: 0 0 20px #6688ff44; }
+#mb-a:active, #mb-a.lit { background: #ff446625; border-color: #ff446677; box-shadow: 0 0 20px #ff446644; }
+
+/* ── Scanline overlay (subtle CRT) ─────────────── */
+#wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    rgba(0, 0, 0, 0.04) 1px,
+    rgba(0, 0, 0, 0.04) 2px
+  );
+  pointer-events: none;
+  z-index: 100;
+  mix-blend-mode: multiply;
+}
+
+/* ── Accessibility ──────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .loading-logo { animation: none; }
+  .mb { transition: none; }
+}
