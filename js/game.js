@@ -747,7 +747,7 @@ class Game {
           const rows = destRoom.tiles.length, cols = destRoom.tiles[0].length;
           if (spawnDir==='left')  spawnOverride = { x:2*TILE,         y:matchExit.ty*TILE };
           if (spawnDir==='right') spawnOverride = { x:(cols-3)*TILE,  y:matchExit.ty*TILE };
-          if (spawnDir==='down')  spawnOverride = { x:matchExit.tx*TILE, y:(rows-4)*TILE };
+          if (spawnDir==='down')  spawnOverride = { x:matchExit.tx*TILE, y:(rows-5)*TILE };
           if (spawnDir==='up')    spawnOverride = { x:matchExit.tx*TILE, y:2*TILE };
         }
         this.loadRoom(this.transTarget, spawnOverride);
