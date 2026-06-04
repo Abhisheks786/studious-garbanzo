@@ -420,7 +420,7 @@ export class UI {
     this.dialogueLines  = lines;
     this.dialogueIdx    = 0;
     this.dialogueActive = true;
-    this.dialogueTimer  = 150;
+    this.dialogueTimer  = 15;
     this.isMerchant     = isMerchant;
     this.merchantNpcId  = npcId;
   }
@@ -439,7 +439,7 @@ export class UI {
       if (this.dialogueIdx >= this.dialogueLines.length) {
         this.dismissDialogue();
       }
-      this.dialogueTimer = 80;
+      this.dialogueTimer = 10;
     }
   }
 

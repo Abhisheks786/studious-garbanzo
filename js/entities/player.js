@@ -185,8 +185,12 @@ export class Player {
   // ── Attack logic ──────────────────────────────────────
   getAttackHitbox() {
     if (this.attackTimer <= 0) return null;
-    const hitFrames = { 0:11, 1:10, 2:9 };
-    if (this.attackTimer !== hitFrames[this.comboStep]) return null;
+
+    // Dynamically calculate the active trigger frame relative to the scaled attack duration.
+    // This guarantees that even with upgraded attack speed, a hitbox is triggered exactly once.
+    const atkDur = Math.round(12 * this.stats.atkSpeed);
+    const triggerFrame = Math.max(1, atkDur - 2); 
+    if (this.attackTimer !== triggerFrame) return null;
 
     const aw  = this.chargeReady ? 28 : (this.comboStep === 2 ? 24 : 20);
     const ah  = this.chargeReady ? 18 : 14;

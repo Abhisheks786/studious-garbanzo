@@ -105,7 +105,7 @@ export class InputSystem {
       case 'right':  return !!(this.K['ArrowRight'] || this.K['KeyD'] || this.T.right || this._gamepad.right);
       case 'down':   return !!(this.K['ArrowDown']  || this.K['KeyS'] || this.T.down);
       case 'up':     return !!(this.K['ArrowUp']    || this.K['KeyW'] || this.T.up || this._gamepad.up);
-      case 'jump':   return !!(this.K['Space'] || this.K['KeyZ'] || this.K['ArrowUp'] || this.T.jump || this._gamepad.jump);
+      case 'jump':   return !!(this.K['Space'] || this.K['KeyZ'] || this.T.jump || this._gamepad.jump);
       case 'dash':   return !!(this.K['ShiftLeft'] || this.K['ShiftRight'] || this.K['KeyX'] || this.T.dash || this._gamepad.dash);
       case 'attack': return !!(this.K['KeyC'] || this.K['KeyJ'] || this.T.attack || this._gamepad.attack);
       default:       return false;
