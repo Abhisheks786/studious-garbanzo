@@ -7,11 +7,15 @@ export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx    = canvas.getContext('2d');
+    // Disable smoothing for crisp pixel art
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.imageSmoothingQuality = 'high';
     // Offscreen canvas for room tiles (cached, redrawn only on room change)
     this._tileCanvas  = document.createElement('canvas');
     this._tileCanvas.width  = W * 3;  // wide enough for any room
     this._tileCanvas.height = H * 4;
     this._tileCtx = this._tileCanvas.getContext('2d');
+    this._tileCtx.imageSmoothingEnabled = false;
     this._tileDirty = true;
     this._lastBiome = '';
   }
@@ -265,58 +269,120 @@ export class Renderer {
       const ec = flash ? '#ffffff' : e.color;
 
       ctx.fillStyle = ec;
-      ctx.shadowColor = e.color; ctx.shadowBlur = flash ? 14 : 5;
+      ctx.shadowColor = e.color; ctx.shadowBlur = flash ? 16 : 8;
 
       // Alert "!" when first aggroed
       if (e.alertFlash > 0) {
         ctx.fillStyle = '#ffcc00';
-        ctx.font = 'bold 10px Share Tech Mono'; ctx.textAlign = 'center';
-        ctx.fillText('!', sx + e.w/2, sy - 6);
-        ctx.textAlign = 'left'; ctx.fillStyle = ec;
+        ctx.font = 'bold 12px Share Tech Mono'; ctx.textAlign = 'center'; ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 8;
+        ctx.fillText('!', sx + e.w/2, sy - 8);
+        ctx.textAlign = 'left'; ctx.shadowBlur = 0; ctx.fillStyle = ec;
       }
 
       if (e.flying) {
+        // Flying enemies - more detailed
+        ctx.save();
+        ctx.globalAlpha = flash ? 1 : 0.95;
+        // Main body
         ctx.beginPath();
-        ctx.ellipse(sx+e.w/2, sy+e.h/2, e.w/2, e.h/2, 0, 0, Math.PI*2); ctx.fill();
-        const flap = Math.sin(frame * 0.18) * 5;
-        ctx.fillStyle = ec + '88';
-        ctx.beginPath(); ctx.ellipse(sx-4, sy+e.h/2, 8, 4+flap,  0.2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(sx+e.w+4, sy+e.h/2, 8, 4+flap, -0.2, 0, Math.PI*2); ctx.fill();
-      } else {
-        const walk = e.onGround ? Math.sin(e.animFrame * 1.4) * 1.5 : 0;
-        ctx.fillRect(sx+2, sy+walk, e.w-4, e.h-2);
+        ctx.ellipse(sx+e.w/2, sy+e.h/2, e.w/2+1, e.h/2+1, 0, 0, Math.PI*2); ctx.fill();
+        // Wing flapping
+        const flap = Math.sin(frame * 0.18) * 6;
+        ctx.fillStyle = ec + '99';
+        ctx.beginPath(); ctx.ellipse(sx-3, sy+e.h/2, 9, 5+flap,  0.25, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(sx+e.w+3, sy+e.h/2, 9, 5+flap, -0.25, 0, Math.PI*2); ctx.fill();
         // Eyes
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(sx + (e.facing > 0 ? e.w-7 : 2), sy+5+walk, 3, 3);
-        // Armor glow
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath(); ctx.arc(sx+e.w/2+(e.facing>0?2:-2), sy+e.h/2-2, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000000';
+        ctx.beginPath(); ctx.arc(sx+e.w/2+(e.facing>0?2:-2), sy+e.h/2-2, 1, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      } else {
+        // Ground enemies - enhanced rendering
+        const walk = e.onGround ? Math.sin(e.animFrame * 1.4) * 1.5 : 0;
+        
+        // Main body - more solid
+        ctx.save();
+        ctx.globalAlpha = flash ? 1 : 0.98;
+        ctx.fillRect(sx+1, sy+1+walk, e.w-2, e.h-3);
+        
+        // Darken one side for 3D effect
+        ctx.fillStyle = e.color + '66';
+        ctx.fillRect(sx+e.w-2, sy+2+walk, 2, e.h-4);
+        
+        // Highlight side
+        ctx.fillStyle = '#ffffff33';
+        ctx.fillRect(sx+1, sy+2+walk, 2, e.h-4);
+        
+        ctx.fillStyle = ec;
+        
+        // Eyes - more expressive
+        ctx.fillStyle = e.type === 'ranged' || e.type === 'necromancer' || e.type === 'ghost' ? '#ff6644' : '#ffff00';
+        const eyeX1 = sx + (e.facing > 0 ? e.w-6 : 3);
+        const eyeX2 = sx + (e.facing > 0 ? e.w-2 : 7);
+        ctx.beginPath(); ctx.arc(eyeX1, sy+6+walk, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(eyeX2, sy+6+walk, 2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000000';
+        ctx.beginPath(); ctx.arc(eyeX1, sy+6+walk, 1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(eyeX2, sy+6+walk, 1, 0, Math.PI*2); ctx.fill();
+        
+        ctx.restore();
+        
+        // Armor glow - more visible
         if (e.armored) {
-          ctx.strokeStyle = e.color; ctx.lineWidth = 2; ctx.globalAlpha = 0.4;
-          ctx.strokeRect(sx+1, sy+1, e.w-2, e.h-2);
+          ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.6;
+          ctx.strokeRect(sx+1, sy+1+walk, e.w-2, e.h-2);
           ctx.globalAlpha = 1;
         }
-        // Shield
+        
+        // Shield - more prominent
         if (e.shield) {
-          ctx.fillStyle = '#88770088';
-          const sdx = e.facing > 0 ? sx + e.w : sx - 5;
-          ctx.fillRect(sdx, sy+4, 5, e.h-6);
-          ctx.fillStyle = '#ccaa00';
-          ctx.fillRect(sdx+1, sy+5, 3, e.h-8);
+          ctx.fillStyle = '#88770099';
+          const sdx = e.facing > 0 ? sx + e.w : sx - 6;
+          ctx.fillRect(sdx, sy+3, 6, e.h-4);
+          ctx.fillStyle = '#ffdd55aa';
+          ctx.fillRect(sdx+1, sy+4, 4, e.h-6);
+          // Shield shine
+          ctx.strokeStyle = '#ffff99';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(sdx+1, sy+4, 4, e.h-6);
         }
+        
         // Elite crown
         if (e.isElite) {
-          ctx.fillStyle = '#ffcc00';
-          ctx.fillRect(sx+3, sy-5, e.w-6, 4);
-          for (let i = 0; i < 3; i++) ctx.fillRect(sx+4+i*(e.w-10)/2, sy-9, 3, 6);
+          ctx.fillStyle = '#ffdd00';
+          ctx.fillRect(sx+2, sy-6, e.w-4, 4);
+          for (let i = 0; i < 3; i++) {
+            ctx.fillRect(sx+3+i*(e.w-8)/2, sy-10, 2, 6);
+          }
+          ctx.strokeStyle = '#ffdd00';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(sx+2, sy-6, e.w-4, 4);
+        }
+        
+        // Spikes/special effects
+        if (e.type === 'spike_ball') {
+          ctx.fillStyle = '#cc5566';
+          for (let i = 0; i < 4; i++) {
+            const angle = (Math.PI * 2 / 4) * i;
+            const px = sx + e.w/2 + Math.cos(angle) * (e.w/2 + 3);
+            const py = sy + e.h/2 + Math.sin(angle) * (e.h/2 + 3);
+            ctx.fillRect(px-1, py-1, 2, 2);
+          }
         }
       }
       ctx.shadowBlur = 0;
 
-      // HP bar (only for enemies with >2 maxHp)
+      // HP bar (enhanced)
       if (e.maxHp > 2) {
-        const bw = e.w + 4;
-        ctx.fillStyle = '#00000066'; ctx.fillRect(sx-2, sy-8, bw, 3);
-        ctx.fillStyle = e.hp/e.maxHp > 0.5 ? '#44cc44' : '#cc4444';
-        ctx.fillRect(sx-2, sy-8, bw*(e.hp/e.maxHp), 3);
+        const bw = e.w + 6;
+        ctx.fillStyle = '#00000088'; ctx.fillRect(sx-3, sy-9, bw, 4);
+        const hpPercent = e.hp / e.maxHp;
+        ctx.fillStyle = hpPercent > 0.5 ? '#44ff44' : hpPercent > 0.2 ? '#ffaa44' : '#ff4444';
+        ctx.fillRect(sx-3, sy-9, bw * hpPercent, 4);
+        ctx.strokeStyle = '#ffffff99';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx-3, sy-9, bw, 4);
       }
     }
   }
@@ -447,74 +513,140 @@ export class Renderer {
     ctx.save();
     ctx.translate(sx + pl.w/2, sy + pl.h/2);
     ctx.rotate(lean);
+    ctx.imageSmoothingEnabled = false;
 
-    // Body / cloak
-    ctx.fillStyle = '#e8d5a0';
-    ctx.fillRect(-5, -11+walk, 10, 18);
+    // ── DETAILED WARRIOR AVATAR ──────────────────
+    // Legs/boots
+    ctx.fillStyle = '#2c1810'; // dark brown boots
+    ctx.fillRect(-3, 4+walk, 2, 6);
+    ctx.fillRect(1, 4+walk, 2, 6);
+    ctx.fillStyle = '#1a0f08';
+    ctx.fillRect(-4, 5+walk, 3, 2);
+    ctx.fillRect(1, 5+walk, 3, 2);
+
+    // Main body/tunic
+    ctx.fillStyle = '#cc5544'; // Red tunic
+    ctx.fillRect(-5, -3+walk, 10, 8);
+    
+    // Body armor/details
+    ctx.fillStyle = '#aa3322'; // Darker red stripes
+    ctx.fillRect(-5, -2+walk, 1, 5);
+    ctx.fillRect(4, -2+walk, 1, 5);
+    
+    // Belt/waist
+    ctx.fillStyle = '#8b6914'; // Gold/bronze belt
+    ctx.fillRect(-6, 4+walk, 12, 1);
+    ctx.fillStyle = '#d4af37';
+    ctx.fillRect(-5, 5+walk, 10, 1);
+
+    // Shoulder pauldrons
+    ctx.fillStyle = '#666666'; // Grey armor
+    ctx.fillRect(pl.facing > 0 ? 5 : -7, -6+walk, 2, 4);
+    ctx.fillStyle = '#888888';
+    ctx.fillRect(pl.facing > 0 ? 6 : -8, -5+walk, 1, 3);
+
+    // Arms
+    ctx.fillStyle = '#d4a574'; // Skin tone
+    ctx.fillRect(pl.facing > 0 ? 5 : -7, -2+walk, 2, 5);
+    ctx.fillStyle = '#a07050'; // Arm shading
+    ctx.fillRect(pl.facing > 0 ? 5 : -6, 2+walk, 1, 2);
 
     // Head
-    ctx.fillStyle = '#c8b580';
-    ctx.beginPath(); ctx.arc(0, -12+walk, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d4a574'; // Skin
+    ctx.beginPath(); ctx.arc(0, -13+walk, 7, 0, Math.PI*2); ctx.fill();
+    
+    // Head shading (left side darker)
+    ctx.fillStyle = '#b8845c';
+    ctx.beginPath(); ctx.arc(-2, -12+walk, 6, Math.PI*0.3, Math.PI*1.7); ctx.fill();
 
-    // Eyes
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(pl.facing > 0 ? 1 : -4, -14+walk, 3, 3);
+    // Ears/pointed tips
+    ctx.fillStyle = '#c49050';
+    ctx.beginPath(); ctx.arc(pl.facing > 0 ? 4 : -4, -16+walk, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d4a574';
+    ctx.beginPath(); ctx.arc(pl.facing > 0 ? 4 : -4, -16+walk, 1.2, 0, Math.PI*2); ctx.fill();
 
-    // Horns
-    ctx.fillStyle = '#c8b58066';
+    // Eyes - more expressive
+    ctx.fillStyle = '#ffcc00'; // Gold eyes
+    ctx.beginPath(); ctx.arc(pl.facing > 0 ? 2 : -2, -14+walk, 2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000000'; // Pupil
+    ctx.beginPath(); ctx.arc(pl.facing > 0 ? 2 : -2, -14+walk, 1, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; // Shine
+    ctx.beginPath(); ctx.arc(pl.facing > 0 ? 2.5 : -1.5, -14.5+walk, 0.5, 0, Math.PI*2); ctx.fill();
+
+    // Mouth/snout
+    ctx.strokeStyle = '#8b6f47';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-1, -10+walk);
+    ctx.lineTo(1, -10+walk);
+    ctx.stroke();
+
+    // Horns - more prominent
+    ctx.fillStyle = '#cc9966';
     if (pl.facing > 0) {
-      ctx.fillRect(2, -19+walk, 2, 6); ctx.fillRect(5, -18+walk, 2, 5);
+      // Right-facing horns
+      ctx.fillRect(4, -21+walk, 1.5, 7);
+      ctx.fillRect(6, -20+walk, 1.5, 6);
     } else {
-      ctx.fillRect(-4, -19+walk, 2, 6); ctx.fillRect(-7, -18+walk, 2, 5);
+      // Left-facing horns
+      ctx.fillRect(-5.5, -21+walk, 1.5, 7);
+      ctx.fillRect(-7.5, -20+walk, 1.5, 6);
     }
+    ctx.fillStyle = '#dd9944';
+    ctx.fillRect(pl.facing > 0 ? 3 : -6, -20+walk, 0.8, 2);
 
-    // Cloak bottom
-    ctx.fillStyle = '#a09060cc';
-    ctx.fillRect(-7, 4+walk, 14, 6);
+    // ── EFFECTS ──────────────────────────────────
 
     // Wall slide spark
     if (pl.wallSlide) {
       ctx.fillStyle = pal.particle + '88';
-      ctx.fillRect(pl.facing > 0 ? 4 : -6, -4+walk, 3, 10);
+      ctx.fillRect(pl.facing > 0 ? 6 : -8, -2+walk, 2, 8);
     }
 
-    // Charge effect
+    // Charge effect - enhanced glow
     if (pl.isCharging && pl.chargeTimer > 15) {
       const cg = Math.min(1, (pl.chargeTimer - 15) / 30);
-      ctx.globalAlpha = cg * 0.7;
-      ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 16 + cg * 8;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(0, 0, 10+cg*8, 0, Math.PI*2); ctx.fill();
-      // Inner glow ring
+      ctx.globalAlpha = cg * 0.6;
+      ctx.shadowColor = '#ffff00'; ctx.shadowBlur = 18 + cg * 12;
+      ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+      ctx.beginPath(); ctx.arc(0, 0, 14+cg*10, 0, Math.PI*2); ctx.fill();
+      // Outer ring
+      ctx.globalAlpha = cg * 0.8;
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ffff00';
+      ctx.beginPath(); ctx.arc(0, 0, 12+cg*8, 0, Math.PI*2); ctx.stroke();
+      // Inner pulse ring
       ctx.globalAlpha = cg * 0.5;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.strokeStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(0, 0, 8+cg*6, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 8+cg*5, 0, Math.PI*2); ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
     }
 
-    // Attack slash arc
+    // Attack slash arc - more visible
     if (pl.attackTimer > 0) {
       const at = pl.attackTimer / 12;
-      ctx.strokeStyle = pl.chargeReady ? '#ffffff' : pal.accent;
-      ctx.lineWidth   = pl.chargeReady ? 4 : 2.5;
-      ctx.globalAlpha = at * 0.9;
-      ctx.shadowColor = pl.chargeReady ? '#ffffff' : pal.accent; 
-      ctx.shadowBlur = pl.chargeReady ? 18 : 14;
+      ctx.strokeStyle = pl.chargeReady ? '#ffff00' : '#ff6644';
+      ctx.lineWidth = pl.chargeReady ? 5 : 3.5;
+      ctx.globalAlpha = at * 0.95;
+      ctx.shadowColor = pl.chargeReady ? '#ffff00' : '#ff6644'; 
+      ctx.shadowBlur = pl.chargeReady ? 22 : 16;
       const dir = pl.facing;
       ctx.beginPath();
-      ctx.arc(dir * 10, -2, pl.chargeReady ? 24 : 18,
-        dir > 0 ? -0.9 : Math.PI-0.9,
-        dir > 0 ?  0.9 : Math.PI+0.9);
+      ctx.arc(dir * 12, 0, pl.chargeReady ? 28 : 20,
+        dir > 0 ? -1.0 : Math.PI-1.0,
+        dir > 0 ?  1.0 : Math.PI+1.0);
       ctx.stroke();
-      // Combo step indicator with glow
+      // Combo indicators
       if (pl.comboStep > 0) {
-        ctx.shadowColor = pal.accent; ctx.shadowBlur = 8;
+        ctx.shadowColor = '#ff6644'; ctx.shadowBlur = 10;
         for (let i = 0; i < pl.comboStep; i++) {
-          ctx.fillStyle = pal.accent;
-          ctx.globalAlpha = 0.8;
-          ctx.fillRect(dir*(16+i*5), -6, 3, 3);
+          ctx.fillStyle = '#ff6644';
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.arc(dir*(18+i*6), -8, 2, 0, Math.PI*2);
+          ctx.fill();
         }
         ctx.shadowBlur = 0;
       }
@@ -524,10 +656,10 @@ export class Renderer {
     ctx.restore();
     ctx.shadowBlur = 0;
 
-    // Dash afterimages
+    // Dash afterimages - brighter
     if (pl.dashTimer > 0) {
-      for (let i = 1; i <= 3; i++) {
-        ctx.globalAlpha = 0.15 * (4 - i) / 3;
+      for (let i = 1; i <= 4; i++) {
+        ctx.globalAlpha = 0.25 * (5 - i) / 4;
         ctx.fillStyle = pal.accent;
         ctx.fillRect(sx - pl.facing * i * 7, sy + 2, pl.w, pl.h - 4);
       }
