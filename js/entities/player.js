@@ -1,5 +1,5 @@
-// ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — Player Entity  (Production Upgrade)
+﻿// ═══════════════════════════════════════════════════
+//  SOULCALL — Player Entity  (Production Upgrade)
 //
 //  UPGRADES:
 //   • Stamina system (dash/charged attack cost stamina)

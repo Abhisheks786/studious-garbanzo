@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — Main Game Orchestrator
+//  SOULCALL — Main Game Orchestrator
 // ═══════════════════════════════════════════════════
 import { W, H, TILE, PL_SPEED, PL_JUMP, PL_GRAV, PL_MAXFALL, DASH_SPEED, DASH_DUR,
          biomeColors, XP_TABLE, RELICS, SKILLS, SHOP_ITEMS, QUESTS } from './constants.js';
@@ -208,6 +208,9 @@ class Game {
         || this.state === 'quests' || this.state === 'settings') return;
 
     if (this.transitioning) { this._updateTransition(); return; }
+
+    // Guard: ensure room is loaded before running gameplay logic
+    if (!this.currentRoom) return;
 
     // Playing
     this._updatePlayer(dt);
@@ -775,6 +778,10 @@ class Game {
           if (spawnDir==='down')  spawnOverride = { x:matchExit.tx*TILE, y:(rows-5)*TILE };
           if (spawnDir==='up')    spawnOverride = { x:matchExit.tx*TILE, y:2*TILE };
         }
+        // Safety: if spawnOverride exists, ensure spawn Y lands on open ground
+        if (spawnOverride && destRoom.tiles) {
+          spawnOverride = this._safeSpawnPosition(destRoom, spawnOverride);
+        }
         this.loadRoom(this.transTarget, spawnOverride);
         if (destRoom.area) this.ui.showTransitionCard(destRoom.area);
         this.transPhase = 'fade-out';
@@ -794,6 +801,58 @@ class Game {
         this.transPhase = 'idle';
       }
     }
+  }
+
+  /**
+   * Ensure player spawn doesn't land inside a solid tile.
+   * spawn.y = foot Y position (player.y + player.h).
+   * Finds the topmost floor below spawn.y and positions player above it.
+   */
+  _safeSpawnPosition(room, spawn) {
+    const tiles  = room.tiles;
+    const cols   = tiles[0].length;
+    const rows   = tiles.length;
+    const plH    = this.player.h; // 22px
+    const plHTiles = Math.ceil(plH / TILE); // tiles occupied by player height
+
+    // Clamp X to valid non-wall column
+    const tileX = Math.max(1, Math.min(Math.floor(spawn.x / TILE), cols - 2));
+
+    // Convert spawn.y foot position to row
+    let startRow = Math.floor(spawn.y / TILE);
+    startRow = Math.max(plHTiles, Math.min(startRow, rows - 1));
+
+    // Scan downward from startRow to find the first solid floor tile
+    let floorRow = rows; // default: no floor found (use room bottom)
+    for (let ty = startRow; ty < rows; ty++) {
+      const ch = tiles[ty] && tiles[ty][tileX];
+      if (ch === '#') {
+        floorRow = ty;
+        break;
+      }
+    }
+
+    // Player feet at top of floor tile
+    const footY = floorRow * TILE;
+
+    // Verify the rows above the floor are clear for the player body
+    let clearAbove = true;
+    for (let ty = floorRow - plHTiles; ty < floorRow; ty++) {
+      if (ty < 0) continue; // above map top is fine
+      const ch = tiles[ty] && tiles[ty][tileX];
+      if (ch === '#') { clearAbove = false; break; }
+    }
+
+    if (!clearAbove) {
+      // Blocked: fall back to room default spawn point
+      return { x: room.spawnTx * TILE, y: room.spawnTy * TILE };
+    }
+
+    // Ensure spawn is at least 2 tile-heights from the top so player is visible
+    const minFootY = (plHTiles + 1) * TILE;
+    const safeFootY = Math.max(minFootY, footY);
+
+    return { x: spawn.x, y: safeFootY };
   }
 
   // ── Draw ─────────────────────────────────────────
@@ -971,6 +1030,7 @@ class Game {
     this.state = 'playing';
     this.save.state.hp = this.save.state.maxHp;
     this.player.dead = false;
+    this.player.refreshStats(this.save); // Ensure stats are refreshed on respawn
     this.loadRoom(this.save.state.spawnRoom);
   }
 

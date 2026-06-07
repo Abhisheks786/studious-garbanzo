@@ -1,5 +1,5 @@
-// ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — World / Room Data
+﻿// ═══════════════════════════════════════════════════
+//  SOULCALL — World / Room Data
 //  FIX: Single-pass ROOM_MAP build (was double-writing,
 //       leaving stale reference before pixelW/H set)
 // ═══════════════════════════════════════════════════

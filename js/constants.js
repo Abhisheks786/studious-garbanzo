@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — Constants
+//  SOULCALL — Constants
 // ═══════════════════════════════════════════════════
 export const W = 640, H = 400;
 export const TILE = 20;

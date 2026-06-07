@@ -1,5 +1,5 @@
-// ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — Audio System  (Production Upgrade)
+﻿// ═══════════════════════════════════════════════════
+//  SOULCALL — Audio System  (Production Upgrade)
 //
 //  FIXES:
 //   • _scheduleLFO no longer crashes on suspended AudioContext

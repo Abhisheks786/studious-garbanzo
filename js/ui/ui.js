@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — UI System  (Production Upgrade)
+//  SOULCALL - UI System  (Production Upgrade)
 //
 //  UPGRADES:
 //   • Animated health bar (smooth lerp to target HP)
@@ -490,9 +490,9 @@ export class UI {
 
     // Title
     ctx.shadowColor = '#e8d5a0'; ctx.shadowBlur = 20 + Math.sin(frame*0.04)*6;
-    this._text('SILKBOUND', W/2, 82, '#e8d5a0', 52, 'center', this._serif);
+    this._text('SOULCALL', W/2, 82, '#e8d5a0', 52, 'center', this._serif);
     ctx.shadowBlur  = 0;
-    this._text('A  H O L L O W  T A L E', W/2, 100, '#ffffff28', 8, 'center');
+    this._text('A  D A R K  O D Y S S E Y', W/2, 100, '#ffffff28', 8, 'center');
 
     // Divider
     const dg = ctx.createLinearGradient(W/2-100, 0, W/2+100, 0);
@@ -500,7 +500,7 @@ export class UI {
     ctx.fillStyle = dg; ctx.fillRect(W/2-100, 110, 200, 1);
 
     // Lore quote
-    this._text('"The kingdom weeps. A nameless vessel stirs."', W/2, 128, '#ffffff33', 9, 'center', this._serif);
+    this._text('"A soul forsaken. A call unheard. Yet it stirs."', W/2, 128, '#ffffff33', 9, 'center', this._serif);
 
     // Controls guide
     const ctrls = [
@@ -527,7 +527,7 @@ export class UI {
     ctx.shadowBlur  = 0;
     this._rect(sb.x, sb.y, sb.w, sb.h, '#00000033', '#ffffff18', 2);
     this._text('Settings', W/2, sb.y+14, '#ffffff44', 10, 'center');
-    this._text('v2.1 PRO', W-34, H-6, '#ffffff18', 7);
+    this._text('SOULCALL v1.0', W-42, H-6, '#ffffff18', 7);
 
     return { playBtn: pb, settingsBtn: sb };
   }
@@ -720,9 +720,9 @@ export class UI {
     const S   = save.state;
     ctx.fillStyle = 'rgba(0,0,0,0.96)'; ctx.fillRect(0, 0, W, H);
     ctx.shadowColor = '#e8d5a0'; ctx.shadowBlur = 24;
-    this._text('THE KINGDOM MENDS', W/2, 70, '#e8d5a0', 26, 'center', this._serif);
+    this._text('THE SOUL CALLS NO MORE', W/2, 70, '#e8d5a0', 26, 'center', this._serif);
     ctx.shadowBlur  = 0;
-    this._text('A HOLLOW TALE — COMPLETE', W/2, 92, '#ffffff33', 9, 'center');
+    this._text('A DARK ODYSSEY — COMPLETE', W/2, 92, '#ffffff33', 9, 'center');
     [
       `Geo collected: ${S.geo}`,
       `Shards found:  ${S.shards}`,

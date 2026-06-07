@@ -1,5 +1,5 @@
-// ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — Particle System  (Production Upgrade)
+﻿// ═══════════════════════════════════════════════════
+//  SOULCALL — Particle System  (Production Upgrade)
 //
 //  FIXES:
 //   • O(1) free-list (head pointer) — was O(n) Array.find()

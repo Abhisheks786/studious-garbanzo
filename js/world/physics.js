@@ -1,5 +1,5 @@
-// ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — Physics System  (Production Upgrade)
+﻿// ═══════════════════════════════════════════════════
+//  SOULCALL — Physics System  (Production Upgrade)
 //
 //  UPGRADES:
 //   • reset() method — call on room load to clear stale tile data

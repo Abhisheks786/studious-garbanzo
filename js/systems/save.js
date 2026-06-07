@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════
-//  SILKBOUND PRO — Save System  (Production Upgrade)
+//  SOULCALL — Save System  (Production Upgrade)
 //
 //  FIXES:
 //   • write() is now debounced — max 1 write per 2 seconds
@@ -11,7 +11,7 @@
 //   • markDirty() — explicit dirty marking for atomic operations
 //   • forceWrite() — bypass debounce for critical saves (die, exit)
 // ═══════════════════════════════════════════════════
-const SAVE_KEY     = 'silkbound_pro_v2';
+const SAVE_KEY     = 'silkbound_pro_v2'; // kept for backward-compat with existing saves
 const SAVE_VERSION = 2;
 const WRITE_THROTTLE_MS = 2000; // minimum ms between localStorage writes
 
